@@ -10,24 +10,34 @@ object Main extends App with Game {
 
 trait Game {
   def intro(): Unit = {
-    println("Welcome to Game of Goose.")
+    println("""
+        __            __
+    ___( o)>        <(o )___
+    \ <_. )          ( ._> /
+     `---'            `---'
+    Welcome to Game of Goose.
+    """)
   }
 
   def play(): Unit = {
-    val move = readLine("your move> ")
-    if (move == "q") {
-      println("Bye!")
-      sys.exit(0)
-    }
-    run(move) match {
-      case None =>
-        println("Invalid move. Try again")
-        play()
-      case Some(userMove) =>
-        println("you played this move")
-        println(userMove)
+    Iterator
+      .continually(readLine("___( o)> "))
+      .foreach {
+        case "q" => {
+          println("Bye!")
+          sys.exit(0)
+        }
+        case move =>
+          run(move) match {
+            case None =>
+              println("Invalid move. Try again")
+            case Some(userMove) =>
+              println("you played this move")
+              println(userMove)
 
-    }
+          }
+      }
+
   }
 
   private def run(move: String): Option[String] = {
