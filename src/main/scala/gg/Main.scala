@@ -132,7 +132,7 @@ trait Game {
               case 6 => {
                 this.updatePlayerPosition(player, 12)
                 Some(
-                  s"$player rolls ${move._1}. $player moves from $currentPosition to The Bridge. Pippo jumps to 12"
+                  s"$player rolls ${move._1}. $player moves from $currentPosition to The Bridge. $player jumps to 12"
                 )
               }
               case 5 | 9 | 14 | 18 | 23 | 27 => {
@@ -140,15 +140,19 @@ trait Game {
                 val positionAfterJumps = jumpsData._1
                 val numberOfJumps = jumpsData._2
                 this.updatePlayerPosition(player, positionAfterJumps)
-                if (numberOfJumps == 1) {
-                  Some(
-                    s"$player rolls ${move._1}. $player moves from $currentPosition to $position, The Goose. Pippo moves again and goes to $positionAfterJumps"
-                  )
-                } else {
-                  Some(
-                    s"$player rolls ${move._1}. $player moves from $currentPosition to $position, The Goose. Pippo moves again and goes to ${positionAfterJumps - move._2}, The Goose. Pippo moves again and goes to $positionAfterJumps"
-                  )
-                }
+                val jumpPhrases = List
+                  .range(1, numberOfJumps + 1)
+                  .map(n => {
+                    if (n == 1) {
+                      s"$player moves from $currentPosition to ${currentPosition + move._2}, The Goose."
+                    } else {
+                      s"$player moves again and goes to ${currentPosition + move._2 * n}, The Goose."
+                    }
+                  })
+                println(jumpPhrases)
+                Some(
+                  s"$player rolls ${move._1}. ${jumpPhrases.mkString(" ")} $player moves again and goes to $positionAfterJumps"
+                )
 
               }
               case _ => {
