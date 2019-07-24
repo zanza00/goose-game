@@ -2,7 +2,7 @@ package gg
 
 import scala.io.StdIn.readLine
 
-object Game {
+trait Game {
   type Player = String
   type Message = String
   import scala.collection.mutable.Map
@@ -10,7 +10,11 @@ object Game {
   val positions: Map[Player, Int] = Map[Player, Int]()
   val rng = scala.util.Random
 
-  private def intro(): Unit = {
+  def cleanup() {
+    positions.clear()
+  }
+
+  def intro(): Unit = {
     println("""
           __            __
       ___( o)>        <(o )___
@@ -38,7 +42,7 @@ object Game {
 
   }
 
-  private def addPlayer(user: String): Option[Player] = {
+  def addPlayer(user: String): Option[Player] = {
     positions.keySet.find(_ == user) match {
       case Some(player) => None
       case None => {
@@ -48,21 +52,21 @@ object Game {
     }
   }
 
-  private def getCurrentPosition(player: Player): Option[Int] =
+  def getCurrentPosition(player: Player): Option[Int] =
     positions.get(player)
 
-  private def getNewPosition(player: Player, amount: Int): Option[Int] =
+  def getNewPosition(player: Player, amount: Int): Option[Int] =
     getCurrentPosition(player).map(_ + amount)
 
-  private def updatePlayerPosition(player: Player, position: Int): Unit =
+  def updatePlayerPosition(player: Player, position: Int): Unit =
     positions.update(player, position)
 
-  private def throwRandomDice(): (String, Int) = {
+  def throwRandomDice(): (String, Int) = {
     val rolls = Array(rng.nextInt(6) + 1, rng.nextInt(6) + 1)
     (rolls.mkString(","), rolls.sum)
   }
 
-  private def calculateJumps(start: Int, move: Int, jumps: Int): (Int, Int) = {
+  def calculateJumps(start: Int, move: Int, jumps: Int): (Int, Int) = {
     val newPosition = start + move
     newPosition match {
       case 5 | 9 | 14 | 18 | 23 | 27 => {
@@ -72,7 +76,76 @@ object Game {
     }
   }
 
-  private def run(command: String): Option[String] = {
+  def handleResult(
+      newPosition: Option[Int],
+      currentPosition: Int,
+      player: String,
+      move: (String, Int)
+  ): Option[String] = {
+    val currentPositionStartOrLetters = currentPosition match {
+      case 0 => "Start"
+      case x => x.toString
+    }
+    newPosition match {
+      case None =>
+        Some(
+          s"Invalid player, avaliable players are ${positions.keySet.mkString(", ")}"
+        )
+      case Some(position) =>
+        position match {
+          case 63 => {
+            updatePlayerPosition(player, position)
+            Some(
+              s"$player rolls ${move._1}. $player moves from $currentPositionStartOrLetters to 63. $player Wins!!"
+            )
+          }
+          case x if x > 63 => {
+            val bounceAmount = position - 63
+            val bouncedPosition = 63 - bounceAmount
+
+            updatePlayerPosition(player, bouncedPosition)
+            Some(
+              s"$player rolls ${move._1}. $player moves from $currentPositionStartOrLetters to 63. $player bounces! Pippo returns to $bouncedPosition"
+            )
+          }
+
+          case 6 => {
+            updatePlayerPosition(player, 12)
+            Some(
+              s"$player rolls ${move._1}. $player moves from $currentPositionStartOrLetters to The Bridge. $player jumps to 12"
+            )
+          }
+          case 5 | 9 | 14 | 18 | 23 | 27 => {
+            val jumpsData = calculateJumps(position, move._2, 1)
+            val positionAfterJumps = jumpsData._1
+            val numberOfJumps = jumpsData._2
+            updatePlayerPosition(player, positionAfterJumps)
+            val jumpPhrases = List
+              .range(1, numberOfJumps + 1)
+              .map(n => {
+                if (n == 1) {
+                  s"$player moves from $currentPositionStartOrLetters to ${currentPosition + move._2}, The Goose."
+                } else {
+                  s"$player moves again and goes to ${currentPosition + move._2 * n}, The Goose."
+                }
+              })
+            Some(
+              s"$player rolls ${move._1}. ${jumpPhrases.mkString(" ")} $player moves again and goes to $positionAfterJumps"
+            )
+
+          }
+          case _ => {
+            updatePlayerPosition(player, position)
+            Some(
+              s"$player rolls ${move._1}. $player moves from $currentPositionStartOrLetters to $position"
+            )
+          }
+        }
+    }
+
+  }
+
+  def run(command: String): Option[String] = {
     val arr = command.split("\\s+")
     arr.head match {
       case "add" => {
@@ -95,66 +168,12 @@ object Game {
 
         val currentPosition = getCurrentPosition(player).getOrElse(0)
         val newPosition = getNewPosition(player, move._2)
-
-        newPosition match {
-          case None =>
-            Some(
-              s"Invalid player, avaliable players are ${positions.keySet.mkString(", ")}"
-            )
-          case Some(position) =>
-            position match {
-              case 63 => {
-                updatePlayerPosition(player, position)
-                Some(
-                  s"$player rolls ${move._1}. $player moves from $currentPosition to 63. $player Wins!!"
-                )
-              }
-              case x if x > 63 => {
-                val bounceAmount = position - 63
-                val bouncedPosition = 63 - bounceAmount
-
-                updatePlayerPosition(player, bouncedPosition)
-                Some(
-                  s"$player rolls ${move._1}. $player moves from $currentPosition to 63. $player bounces! Pippo returns to $bouncedPosition"
-                )
-              }
-
-              case 6 => {
-                updatePlayerPosition(player, 12)
-                Some(
-                  s"$player rolls ${move._1}. $player moves from $currentPosition to The Bridge. $player jumps to 12"
-                )
-              }
-              case 5 | 9 | 14 | 18 | 23 | 27 => {
-                val jumpsData = calculateJumps(position, move._2, 1)
-                val positionAfterJumps = jumpsData._1
-                val numberOfJumps = jumpsData._2
-                updatePlayerPosition(player, positionAfterJumps)
-                val jumpPhrases = List
-                  .range(1, numberOfJumps + 1)
-                  .map(n => {
-                    if (n == 1) {
-                      s"$player moves from $currentPosition to ${currentPosition + move._2}, The Goose."
-                    } else {
-                      s"$player moves again and goes to ${currentPosition + move._2 * n}, The Goose."
-                    }
-                  })
-                Some(
-                  s"$player rolls ${move._1}. ${jumpPhrases.mkString(" ")} $player moves again and goes to $positionAfterJumps"
-                )
-
-              }
-              case _ => {
-                updatePlayerPosition(player, position)
-                Some(
-                  s"$player rolls ${move._1}. $player moves from $currentPosition to $position."
-                )
-              }
-            }
-        }
+        handleResult(newPosition, currentPosition, player, move)
 
       }
       case _ => None
     }
   }
 }
+
+object Game extends Game
